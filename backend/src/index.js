@@ -3,6 +3,7 @@ const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
+const rateLimit = require('express-rate-limit');
 const { createClient } = require('@supabase/supabase-js');
 const jwt = require('jsonwebtoken');
 const { expressjwt } = require('express-jwt');
@@ -11,6 +12,23 @@ const errorHandler = require('./middleware/errorHandler');
 
 // Initialize Express app
 const app = express();
+
+// Rate limiter configuration
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // Limit each IP to 100 requests per windowMs
+  message: 'Too many requests from this IP, please try again later.',
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+// Auth rate limiter (stricter)
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 5, // Limit each IP to 5 login attempts per windowMs
+  message: 'Too many authentication attempts, please try again later.',
+  skipSuccessfulRequests: true,
+});
 
 // Middleware
 app.use(cors({
@@ -75,6 +93,19 @@ app.use((err, req, res, next) => {
 app.use(morgan('dev'));
 app.use(express.json());
 
+// Apply rate limiter to all routes
+app.use('/api/', limiter);
+
+// Health check endpoint (no rate limit)
+app.get('/health', (req, res) => {
+  res.status(200).json({
+    status: 'healthy',
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime(),
+    environment: process.env.NODE_ENV || 'development'
+  });
+});
+
 // Initialize Supabase client
 const supabase = createClient(
   process.env.SUPABASE_URL,
@@ -96,8 +127,8 @@ const jwtMiddleware = expressjwt({
 // Apply JWT middleware
 app.use('/api', jwtMiddleware);
 
-// Authentication routes
-app.post('/api/auth/register', validateAuth, async (req, res, next) => {
+// Authentication routes (with stricter rate limiting)
+app.post('/api/auth/register', authLimiter, validateAuth, async (req, res, next) => {
   try {
     const { email, password, walletAddress } = req.body;
 
@@ -169,7 +200,7 @@ app.post('/api/auth/register', validateAuth, async (req, res, next) => {
   }
 });
 
-app.post('/api/auth/login', validateAuth, async (req, res, next) => {
+app.post('/api/auth/login', authLimiter, validateAuth, async (req, res, next) => {
   try {
     const { email, password } = req.body;
 

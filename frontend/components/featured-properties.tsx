@@ -87,8 +87,8 @@ export function FeaturedProperties() {
     );
   }
 
-  // Get the first 4 properties as featured
-  const featuredProperties = properties?.slice(0, 4) || [];
+  // Get properties 8-11 as featured (skip first 8 test properties)
+  const featuredProperties = properties?.slice(8, 12) || [];
 
   return (
     <section id="properties" className="py-20 bg-gray-50 dark:bg-gray-900">
