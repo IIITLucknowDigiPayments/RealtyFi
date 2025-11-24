@@ -1,12 +1,34 @@
 from flask import Flask, request, jsonify, render_template
 import pickle
 import numpy as np
+import logging
 
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
 
 def predict_property_price(model, rental_yield, appreciation_rate, crime_rate, aqi, 
                          transport_score, school_rating, walkability, city):
+    """
+    Predict property price based on various features.
+    
+    Args:
+        model: Trained ML model
+        rental_yield: Property rental yield percentage
+        appreciation_rate: Expected appreciation rate
+        crime_rate: Area crime rate score
+        aqi: Air quality index
+        transport_score: Transportation accessibility score
+        school_rating: Average school rating in area
+        walkability: Walkability score
+        city: City name
+    
+    Returns:
+        Predicted property price
+    """
+    logger.info(f"Predicting price for city: {city}")
     
     cities = {
         'Boston': 0, 'Chicago': 0, 'Dallas': 0, 'Denver': 0, 
@@ -16,6 +38,8 @@ def predict_property_price(model, rental_yield, appreciation_rate, crime_rate, a
 
     if city in cities:
         cities[city] = 1
+    else:
+        logger.warning(f"Unknown city: {city}. Using default encoding.")
     
     input_data = np.array([[
         rental_yield,
@@ -35,13 +59,19 @@ def predict_property_price(model, rental_yield, appreciation_rate, crime_rate, a
 
 # Load model and features from their respective files
 try:
+    logger.info("Loading ML model and features...")
     with open('price_pred/house_price_model.pkl', 'rb') as model_file:
         model = pickle.load(model_file)
 
     with open('price_pred/model_features.pkl', 'rb') as features_file:
         feature_names = pickle.load(features_file)
+    
+    logger.info("Model and features loaded successfully")
+except FileNotFoundError as e:
+    logger.error(f"Model or feature file not found: {str(e)}")
+    raise
 except Exception as e:
-    print(f"Error loading model or features: {str(e)}")
+    logger.error(f"Error loading model or features: {str(e)}")
     raise
 
 @app.route('/')
