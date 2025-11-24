@@ -8,6 +8,7 @@ import { MapPin, TrendingUp, ArrowRight } from "lucide-react"
 import Link from "next/link"
 import { cn } from "@/lib/utils"
 import { PropertySkeleton } from "@/components/property-skeleton"
+import { useProperties } from "@/hooks/use-properties"
 import Cookies from "js-cookie"
 
 interface Property {
@@ -38,10 +39,9 @@ interface Valuation {
 
 export function FeaturedProperties() {
   const [hoveredCard, setHoveredCard] = useState<string | null>(null)
-  const [properties, setProperties] = useState<Property[]>([])
   const [propertyValuations, setPropertyValuations] = useState<Record<string, Valuation>>({})
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  
+  const { data: properties, isLoading: loading, error: fetchError } = useProperties()
 
   const determineLocationGrade = (pricePerShare: number) => {
     if (pricePerShare >= 1.0) return 'prime';
@@ -72,14 +72,14 @@ export function FeaturedProperties() {
     );
   }
 
-  if (error) {
+  if (fetchError) {
     return (
       <section id="properties" className="py-20 bg-gray-50 dark:bg-gray-900">
         <div className="container mx-auto px-4">
           <div className="mb-12 text-center">
             <h2 className="text-3xl font-bold mb-4">Featured Properties</h2>
             <p className="text-muted-foreground max-w-2xl mx-auto">
-              {error}
+              {fetchError.message || 'Error loading properties'}
             </p>
           </div>
         </div>
@@ -87,8 +87,8 @@ export function FeaturedProperties() {
     );
   }
 
-  // Get properties 8-11 as featured (skip first 8 test properties)
-  const featuredProperties = properties?.slice(8, 12) || [];
+  // Get all properties starting from index 8 (skip first 8 test properties)
+  const featuredProperties = properties?.slice(8) || [];
 
   return (
     <section id="properties" className="py-20 bg-gray-50 dark:bg-gray-900">
